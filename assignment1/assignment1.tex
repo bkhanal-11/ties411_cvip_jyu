@@ -1,0 +1,375 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath, amssymb, geometry}
+\geometry{margin=1in}
+\usepackage{siunitx}
+\usepackage{bm}
+
+\title{Week 01 Assignment Based on Book Computer Vision by Richard Szeliski, Second Edition, Chapter 2}
+\author{Bishwash Khanal, \texttt{bishwash.b.khanal@student.jyu.fi}}
+\date{September 13, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Pinhole Projection, Intrinsics, and Radial Distortion}
+
+We are given a camera with resolution $1920\times 1080$ pixels and intrinsics
+\[
+K = \begin{bmatrix}
+f_x & 0 & c_x\\
+0 & f_y & c_y\\
+0 & 0 & 1
+\end{bmatrix}, 
+\quad f_x=f_y=1200~\text{px}, \quad c_x=960, \quad c_y=540.
+\]
+The normalized pinhole model is
+\[
+x = \frac{X}{Z}, \qquad y = \frac{Y}{Z}, \qquad 
+u = f_x x + c_x, \quad v = f_y y + c_y.
+\]
+Radial distortion is modeled as
+\[
+x_d = x\!\left(1+k_1 r^2+k_2 r^4\right), \quad
+y_d = y\!\left(1+k_1 r^2+k_2 r^4\right),
+\]
+with $r^2=x^2+y^2$, $k_1=-0.25$, $k_2=0.10$.  
+We consider the 3D point $(X,Y,Z)=(0.15,-0.05,2.0)$ meters.
+
+\subsection*{(a) Compute $(u,v)$ ignoring distortion}
+
+First compute normalized coordinates:
+\[
+x = \frac{0.15}{2.0} = 0.075, \qquad
+y = \frac{-0.05}{2.0} = -0.025.
+\]
+Then apply intrinsic mapping:
+\[
+u = f_x x + c_x = 1200\cdot0.075 + 960 = 1050.0,
+\]
+\[
+v = f_y y + c_y = 1200\cdot(-0.025) + 540 = 510.0.
+\]
+Thus,
+\[
+(u,v) = (1050.0,\ 510.0).
+\]
+
+\subsection*{(b) Compute $(u_d,v_d)$ with distortion}
+
+Compute squared radius:
+\[
+r^2 = x^2 + y^2 = (0.075)^2 + (-0.025)^2 = 0.00625.
+\]
+Radial factor:
+\[
+\alpha = 1 + k_1 r^2 + k_2 r^4 
+= 1 - 0.25\cdot0.00625 + 0.10\cdot(0.00625^2).
+\]
+Numerically,
+\[
+\alpha \approx 0.99844.
+\]
+Apply distortion:
+\[
+x_d = x\alpha \approx 0.075 \cdot 0.99844 = 0.07488, \qquad
+y_d = y\alpha \approx -0.025 \cdot 0.99844 = -0.02496.
+\]
+Convert to pixel coordinates:
+\[
+u_d = f_x x_d + c_x = 1200\cdot0.07488 + 960 \approx 1049.86,
+\]
+\[
+v_d = f_y y_d + c_y = 1200\cdot(-0.02496) + 540 \approx 510.05.
+\]
+Thus,
+\[
+(u_d,v_d) \approx (1049.86,\ 510.05).
+\]
+
+\subsection*{(c) Fields of View}
+
+The horizontal field of view is
+\[
+\mathrm{FOV}_x = 2 \arctan\!\left(\frac{W}{2f_x}\right)
+= 2 \arctan\!\left(\frac{1920}{2400}\right).
+\]
+Numerically,
+\[
+\mathrm{FOV}_x \approx 77.3^\circ.
+\]
+
+Similarly, the vertical field of view:
+\[
+\mathrm{FOV}_y = 2 \arctan\!\left(\frac{H}{2f_y}\right)
+= 2 \arctan\!\left(\frac{1080}{2400}\right).
+\]
+Numerically,
+\[
+\mathrm{FOV}_y \approx 48.5^\circ.
+\]
+
+\subsection*{(d) Effective focal length in mm}
+
+Pixel pitch is given as $p=4~\mu\mathrm{m} = 0.004~\mathrm{mm}$.  
+Effective focal length:
+\[
+f_{\mathrm{mm}} = f_x \cdot p = 1200 \cdot 0.004 = 4.8~\mathrm{mm}.
+\]
+
+\subsection*{(e) Pixel shift in $u$ due to distortion}
+
+The horizontal shift is
+\[
+\Delta u = u_d - u = 1049.86 - 1050.0 \approx -0.14\ \text{px}.
+\]
+Thus, the distortion shifted the point leftward by about $0.14$ pixels.
+
+\section*{Final Results}
+\begin{itemize}
+\item Ignoring distortion: $(u,v)=(1050.0,\ 510.0)$.
+\item With distortion: $(u_d,v_d)\approx(1049.86,\ 510.05)$.
+\item FOVs: $\mathrm{FOV}_x\approx 77.3^\circ$, $\mathrm{FOV}_y\approx 48.5^\circ$.
+\item Effective focal length: $f_{\mathrm{mm}}=4.8$ mm.
+\item Pixel shift: $\Delta u \approx -0.14$ px.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+
+\section{Thin Lens, Depth of Field, and Diffraction}
+
+\textbf{Given:} focal length \(f=\SI{35}{mm}\), pixel pitch \(p=\SI{4}{\micro m}\), wavelength \(\lambda=\SI{550}{nm}\),
+circle of confusion \(c=2p\), subject distance \(s=\SI{2.5}{m}\).  
+(Throughout we keep units explicit and convert where necessary.)
+
+\bigskip
+
+\subsection*{(a) Hy\-per\-fo\-cal distance at \(N=4\)}
+
+The hyperfocal distance for a given circle of confusion \(c\) and f-number \(N\) is
+\[
+H=\frac{f^2}{N c}+f.
+\]
+We must use consistent units. Convert the circle of confusion to \(\mathrm{mm}\):
+\[
+p=\SI{4}{\micro m}=\SI{0.004}{mm}\quad\Rightarrow\quad c=2p=\SI{0.008}{mm}.
+\]
+Compute \(f^2\) (in \(\text{mm}^2\)): \(f^2=(\SI{35}{mm})^2=\SI{1225}{mm^2}\).
+Then
+\[
+\frac{f^2}{N c}=\frac{1225}{4\cdot 0.008}=\frac{1225}{0.032}=\SI{38281.25}{mm}.
+\]
+Add \(f\) (small compared to the fraction):
+\[
+H=\SI{38281.25}{mm}+\SI{35}{mm}=\SI{38316.25}{mm}=\boxed{\SI{38.316}{m}}.
+\]
+The hyperfocal distance is very large (tens of metres) because the chosen circle of confusion is tiny (8 $\mu$m).
+
+\bigskip
+
+\subsection*{(b) Near and far depth-of-field limits when focused at \(s=\SI{2.5}{m}\)}
+
+Use the standard formulas (with all distances in the same units; here \(\mathrm{mm}\)):
+\[
+s_{\text{near}}=\frac{H s}{H+(s-f)},\qquad
+s_{\text{far}}=\frac{H s}{H-(s-f)}.
+\]
+Convert \(s\) and \(f\) to \(\mathrm{mm}\):
+\[
+s=\SI{2.5}{m}=\SI{2500}{mm},\qquad f=\SI{35}{mm}.
+\]
+Compute \(s-f=\SI{2500}{mm}-\SI{35}{mm}=\SI{2465}{mm}\). Using \(H=\SI{38316.25}{mm}\) from (a):
+\[
+s_{\text{near}}=\frac{38316.25\cdot 2500}{38316.25+2465}
+=\frac{95\,790\,625}{40\,781.25}\approx\SI{2348.89}{mm}=\boxed{\SI{2.349}{m}}.
+\]
+\[
+s_{\text{far}}=\frac{38316.25\cdot 2500}{38316.25-2465}
+=\frac{95\,790\,625}{35\,851.25}\approx\SI{2671.89}{mm}=\boxed{\SI{2.672}{m}}.
+\]
+Since \(s<H\) holds, both near and far distances are finite. The DoF ranges approximately from \(\SI{2.349}{m}\) to \(\SI{2.672}{m}\).
+
+\bigskip
+
+\subsection*{(c) Airy disk diameter at \(N=16\)}
+
+The diameter of the diffraction-limited Airy disk (first zero to first zero) on the image plane is
+\[
+d_{\text{Airy}} = 2.44\,\lambda\,N.
+\]
+Convert the wavelength to micrometres for convenience:
+\[
+\lambda=\SI{550}{nm}=\SI{0.55}{\micro m}.
+\]
+At \(N=16\):
+\[
+d_{\text{Airy}} = 2.44\cdot 0.55\cdot 16
+= (2.44\cdot 0.55)\cdot 16 = 1.342\cdot 16 = \SI{21.472}{\micro m}.
+\]
+Expressed in pixels (pixel pitch \(p=\SI{4}{\micro m}\)):
+\[
+\frac{d_{\text{Airy}}}{p}=\frac{21.472}{4}\approx\boxed{5.368\ \text{pixels}}.
+\]
+At \(N=16\) the Airy diameter spans more than 5 pixels, so diffraction blur is much larger than a single pixel.
+
+\bigskip
+
+\subsection*{(d) f-number \(N^\ast\) where \(d_{\text{Airy}}=2\) pixels (i.e.\ \(=\SI{8}{\micro m}\))}
+
+We set \(d_{\text{Airy}}=2.44\,\lambda\,N^\ast = \SI{8}{\micro m}\). Solve for \(N^\ast\):
+\[
+N^\ast = \frac{8}{2.44\,\lambda(\SI{}{\micro m})} = \frac{8}{2.44\cdot 0.55}.
+\]
+Compute denominator: \(2.44\cdot 0.55 = 1.342\). Hence
+\[
+N^\ast = \frac{8}{1.342}\approx \boxed{5.96}.
+\]
+Rounding reasonably, \(N^\ast\approx 6\).
+
+\textbf{Is the system diffraction- or sensor-limited at \(N^\ast\)?}  
+At \(N^\ast\) the Airy disk diameter equals \(\SI{8}{\micro m}\), i.e.\ two pixels (each \(\SI{4}{\micro m}\)). This means diffraction produces a blur larger than a single pixel: the point spread is dominated by diffraction rather than by sensor sampling. Therefore the system is \emph{diffraction-limited} (or at the diffraction–sampling transition). For \(N>N^\ast\) diffraction will increasingly dominate; for \(N<N^\ast\) the sensor (pixel size / optical aberrations) is more likely to limit resolving power.
+
+\bigskip
+
+\section*{Final Results}
+\begin{itemize}
+  \item \(H=\SI{38316.25}{mm}=\SI{38.316}{m}.\)
+  \item \(s_{\text{near}}\approx\SI{2348.89}{mm}=\SI{2.349}{m}.\)
+  \item \(s_{\text{far}}\approx\SI{2671.89}{mm}=\SI{2.672}{m}.\)
+  \item \(d_{\text{Airy}}(N=16)=\SI{21.472}{\micro m}\approx 5.37\ \text{pixels}.\)
+  \item \(N^\ast\approx 5.96\) (approx.\ \(6\)); at this f-number the system is diffraction-limited.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+
+\section{Sampling, Nyquist, and Aliasing}
+
+\textbf{Given:} pixel pitch \(p=\SI{4}{\micro m}=\SI{0.004}{mm}\).  
+Sampling frequency at the sensor plane is defined as
+\[
+f_s=\frac{1}{p}\quad\text{(cycles/mm)},\qquad f_N=\frac{f_s}{2}.
+\]
+Three sinusoidal gratings at the sensor plane have spatial frequencies
+\[
+\text{A: } f_A=\SI{90}{cycles/mm},\qquad
+\text{B: } f_B=\SI{150}{cycles/mm},\qquad
+\text{C: } f_C=\SI{210}{cycles/mm}.
+\]
+
+\subsection*{(1) Compute \(f_s\) and \(f_N\). Which gratings exceed Nyquist?}
+
+Compute the sampling frequency (use \(p=\SI{0.004}{mm}\)):
+\[
+f_s=\frac{1}{p}=\frac{1}{0.004}=\SI{250}{cycles/mm}.
+\]
+Thus the Nyquist frequency is
+\[
+f_N=\frac{f_s}{2}=\frac{250}{2}=\SI{125}{cycles/mm}.
+\]
+
+Compare each grating with \(f_N=\SI{125}{cycles/mm}\):
+\begin{itemize}
+  \item A: \(90 < 125\) — below Nyquist (no aliasing).
+  \item B: \(150 > 125\) — exceeds Nyquist (will alias).
+  \item C: \(210 > 125\) — exceeds Nyquist (will alias).
+\end{itemize}
+
+\subsection*{(2) Aliased frequencies for those exceeding Nyquist}
+
+We compute aliased frequency using
+\[
+f_{\text{alias}}=\left|\,f - \operatorname{round}\!\left(\frac{f}{f_s}\right)f_s\,\right|.
+\]
+Here \(f_s=\SI{250}{cycles/mm}\).
+
+For \(f_B=\SI{150}{cycles/mm}\):
+\[
+\frac{f_B}{f_s}=\frac{150}{250}=0.6 \quad\Rightarrow\quad \operatorname{round}(0.6)=1,
+\]
+so
+\[
+f_{B,\text{alias}}=\big|150 - 1\cdot250\big|=\big|-100\big|=\SI{100}{cycles/mm}.
+\]
+
+For \(f_C=\SI{210}{cycles/mm}\):
+\[
+\frac{f_C}{f_s}=\frac{210}{250}=0.84 \quad\Rightarrow\quad \operatorname{round}(0.84)=1,
+\]
+so
+\[
+f_{C,\text{alias}}=\big|210 - 1\cdot250\big|=\big|-40\big|=\SI{40}{cycles/mm}.
+\]
+
+(If a frequency lay above \(1.5f_s\) the rounding could give 2, etc.; here both round to 1.)
+
+\subsection*{(3) Convert each grating’s (true or aliased) frequency to cycles/pixel and period in pixels}
+
+Relation:
+\[
+\text{cycles/pixel} = f\ [\text{cycles/mm}]\times p\ [\text{mm/pixel}],\qquad
+\text{period (pixels)} = \frac{1}{\text{cycles/pixel}}.
+\]
+With \(p=\SI{0.004}{mm/pixel}\):
+
+\paragraph{A (no alias):}
+\[
+\text{cycles/pixel}_A = 90\cdot0.004 = 0.36\ \text{cycles/pixel},
+\qquad \text{period}_A = \frac{1}{0.36}\approx 2.7778\ \text{pixels}.
+\]
+
+\paragraph{B (aliased to \(\SI{100}{cycles/mm}\)):}
+\[
+\text{cycles/pixel}_B = 100\cdot0.004 = 0.40\ \text{cycles/pixel},
+\qquad \text{period}_B = \frac{1}{0.40} = 2.5\ \text{pixels}.
+\]
+
+\paragraph{C (aliased to \(\SI{40}{cycles/mm}\)):}
+\[
+\text{cycles/pixel}_C = 40\cdot0.004 = 0.16\ \text{cycles/pixel},
+\qquad \text{period}_C = \frac{1}{0.16} = 6.25\ \text{pixels}.
+\]
+
+\subsection*{(4) Downsample by factor 2 after ideal low-pass filtering: maximum passband cutoff (cycles/pixel) to guarantee no aliasing}
+
+When downsampling by an integer factor \(D\) the new sampling frequency becomes \(f_s' = f_s/D\), and the new Nyquist (in cycles/mm) is \(f_N' = f_s' / 2 = f_s/(2D)\). Converting to cycles/pixel (multiply by \(p\)) gives
+\[
+\text{cutoff} = f_N' \cdot p = \frac{f_s}{2D}\,p.
+\]
+But \(f_s p = (1/p)\cdot p = 1\), so this simplifies to
+\[
+\boxed{\text{cutoff}=\frac{1}{2D}\ \text{cycles/pixel}.}
+\]
+For \(D=2\):
+\[
+\text{cutoff}=\frac{1}{4}=\boxed{0.25\ \text{cycles/pixel}}.
+\]
+
+\subsection*{(5) Downsample by factor 3: required cutoff}
+
+For \(D=3\):
+\[
+\text{cutoff}=\frac{1}{2D}=\frac{1}{6}\approx\boxed{0.1667\ \text{cycles/pixel}}.
+\]
+(Equivalently: in cycles/mm this is \(f_N' = f_s/(2\cdot 3)=250/6\approx\SI{41.6667}{cycles/mm}\); multiplying by \(p=\SI{0.004}{mm}\) yields \(0.1667\) cycles/pixel.)
+
+\bigskip
+\section*{Final Results}
+\begin{itemize}
+  \item \(f_s=\SI{250}{cycles/mm}\), \(f_N=\SI{125}{cycles/mm}\).
+  \item A (\(\SI{90}{cycles/mm}\)) is below Nyquist. B (\(\SI{150}{cycles/mm}\)) and C (\(\SI{210}{cycles/mm}\)) exceed Nyquist.
+  \item Aliases: \(f_{B,\text{alias}}=\SI{100}{cycles/mm}\), \(f_{C,\text{alias}}=\SI{40}{cycles/mm}\).
+  \item Cycles/pixel and periods:
+    \begin{itemize}
+      \item A: \(0.36\ \text{cycles/pixel}\), period \(\approx 2.78\) px.
+      \item B (aliased): \(0.40\ \text{cycles/pixel}\), period \(2.50\) px.
+      \item C (aliased): \(0.16\ \text{cycles/pixel}\), period \(6.25\) px.
+    \end{itemize}
+  \item Downsample factor 2: cutoff \(=0.25\) cycles/pixel. \\
+        Downsample factor 3: cutoff \(\approx 0.1667\) cycles/pixel.
+\end{itemize}
+
+\end{document}

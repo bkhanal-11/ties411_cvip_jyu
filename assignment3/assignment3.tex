@@ -1,0 +1,145 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath, amssymb, geometry}
+\geometry{margin=1in}
+\usepackage{siunitx}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\title{Week 03 Assignment Based on Book Computer Vision by Richard Szeliski, Second Edition, Chapter 5}
+\author{Bishwash Khanal, \texttt{bishwash.b.khanal@student.jyu.fi}}
+\date{September 28, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Function optimization}
+
+Consider the function $f(x,y) = x^{2} + 20 y^{2}$ shown in Figure 5.63a in textbook (2nd edition). Begin by solving for the following:
+
+\begin{enumerate}
+    \item Calculate $\nabla f$, i.e., the gradient of $f$, and evaluate the gradient at $x = -20, y = 5$.
+
+    The gradient of $f(x,y) = x^2 + 20y^2$ is:
+\begin{align}
+\nabla f &= \begin{bmatrix} \frac{\partial f}{\partial x} \\ \frac{\partial f}{\partial y} \end{bmatrix} = \begin{bmatrix} 2x \\ 40y \end{bmatrix}
+\end{align}
+
+Evaluating at the starting point $x = -20, y = 5$:
+\begin{align}
+\nabla f(-20, 5) &= \begin{bmatrix} 2(-20) \\ 40(5) \end{bmatrix} = \begin{bmatrix} -40 \\ 200 \end{bmatrix}
+\end{align}
+
+    \item Implement the following gradient descent optimizers, which should take you from the starting point $x= -20, y= 5$ to near the minimum at $x= 0, y= 0$:
+
+    a) Standard gradient descent, b) Gradient descent with momentum, starting with the momentum term $\rho = 0.99$, and c) Adam, starting with decay rates of $\beta_{1}=0.9$ and $\beta_{2}=0.999$.
+    \newpage
+    \item Implement above optimizations (as in question 1.2) with different values of the learning rate $\alpha$. For each experiment (with different value of $\alpha$), plot how $x$ and $y$ change over time, as shown in Figure 5.63b in textbook (2nd edition).
+    
+    \begin{figure}[htb]
+        \centering
+        \includegraphics[width=0.7\textwidth]{src/optimization_comparison.png}
+        \caption{Optimization comparison for different learning rates}
+        \label{fig:optimization_comparison}
+    \end{figure}
+    
+    \item How do the optimizers behave differently? Is there a single learning rate that makes all the optimizers converge towards $x=0,\; y=0$ in under 200 steps? Does each optimizer monotonically trend towards $x=0,\; y=0$?
+
+    Analysing the plots for different learning rates, \textbf{Standard gradient descent} seems to be highly sensitive to the choice of the 
+    learning rate. If the learning rate is too large it diverges while too small, and convergence is quick (for the given function).
+    
+    \textbf{Momentum gradient descent} looks to imporve upon standard GD by building velocity in consistent directions and dampening oscillations through its memory of previous gradients. However, this also fails for higher learning rate as evident for the convergence plot.
+    
+    \textbf{Adam} however performs the most conssistant among three. For the different learning rates above, only Adam is monotonically trading towards $x=0,\; y=0$. 
+    
+    From above experiments, no single learning rate makes all the optimizer trend towards $x=0,\; y=0$ in under 200 steps. For example, learning rate of $0.01$ is the closest to let all the optimizers to converge but it will required more steps than 200.
+
+Notebook: \href{https://colab.research.google.com/drive/1tf7sX_6Q1F7lb8I5yhct-AmUfKDZrwM3?usp=sharing}{Assignment\_Week3\_Q1.ipynb (Google Colab)}
+
+\end{enumerate}
+
+\section{Generative Adversarial Network (GAN) Training}
+
+In the GAN loss formulation, suppose the discriminator D is near-perfect, such that it correctly outputs near 1 for real images $\mathbf{x}_n$ and near 0 for synthetically generated images $G(\mathbf{z}_n)$.
+
+\begin{enumerate}
+    \item For both the discriminator and the generator, compute its approximate loss with
+    \begin{equation*}
+        \mathcal{L}_{\mathrm{GAN}}(\mathbf{x}_n,\mathbf{z}_n)
+        = \log D(\mathbf{x}_n) + \log\bigl(1 - D(G(\mathbf{z}_n))\bigr)
+    \end{equation*}
+    where the discriminator tries to minimize $\mathcal{L}_{\mathrm{GAN}}$ and the generator tries to maximize $\mathcal{L}_{\mathrm{GAN}}$.
+
+    \textbf{For the Discriminator:}
+The discriminator tries to minimize $\mathcal{L}_{\mathrm{GAN}}$:
+\begin{align}
+\mathcal{L}_{\mathrm{GAN}} &\approx \log(1) + \log(1 - 0) \\
+&= 0 + 0 = 0
+\end{align}
+
+The discriminator loss is approximately 0, indicating perfect performance.
+
+\textbf{For the Generator:}
+The generator tries to maximize $\mathcal{L}_{\mathrm{GAN}}$ (equivalently, minimize $-\mathcal{L}_{\mathrm{GAN}}$):
+\begin{align}
+-\mathcal{L}_{\mathrm{GAN}} &\approx -[\log(1) + \log(1 - 0)] \\
+&= 0
+\end{align}
+
+The generator loss is also approximately 0.
+    \item How well can this discriminator be used to train the generator?
+
+    This discriminator cannot effectively train the generator due to the \textbf{vanishing gradient problem}.
+
+    When $D(G(\mathbf{z}_n)) \approx 0$:
+    \begin{align}
+    \frac{\partial}{\partial G} \log(1 - D(G(\mathbf{z}_n))) &= \frac{-1}{1 - D(G(\mathbf{z}_n))} \cdot \frac{\partial D(G(\mathbf{z}_n))}{\partial G} \\
+    &\approx \frac{-1}{1 - 0} \cdot \frac{\partial D(G(\mathbf{z}_n))}{\partial G} \\
+    &= -\frac{\partial D(G(\mathbf{z}_n))}{\partial G}
+    \end{align}
+    
+    Since $D(G(\mathbf{z}_n)) \approx 0$, the derivative $\frac{\partial D(G(\mathbf{z}_n))}{\partial G}$ is very small, leading to vanishing gradients and poor learning.
+    
+
+    \item Can you modify the generator’s loss function, $\min \log\bigl(1 - D(G(\mathbf{z}_n))\bigr)$, such that it is easier to train with both a great discriminator and a discriminator that is no better than random?
+
+    If the discriminator is random: $D(\cdot)=0.5$. Then
+
+$$
+\mathcal{L}_{\mathrm{GAN}}=\log 0.5 + \log(1-0.5)=\log 0.5+\log 0.5 = 2\log 0.5 = -2\ln 2 \approx -1.386.
+$$
+
+For the generator, $\log(1-D(G))=\log 0.5 = -\ln 2 \approx -0.693$. Gradients are non-vanishing and of moderate size, so the generator can learn in this case. 
+This means a perfect discriminator is not necessarily good for training the generator during the initial training process.
+
+An effective fix can be to replace the generator's objective $\min \log(1-D(G))$ by the \textbf{non-saturating} objective:
+
+$$
+\text{Generator: minimize}\quad \ell_G' \;=\; -\log D(G(\mathbf{z})).
+$$
+
+Equivalently, the generator maximizes $\log D(G(\mathbf{z}))$. In this case, if $D$ is near-perfect at labeling fake samples, $D(G)\approx\varepsilon\ll 1$. 
+Then $\ell_G' = -\log \varepsilon$, which is large and yields a strong gradient (derivative $\propto -1/D(G)\approx -1/\varepsilon$). That pushes the generator to change its output a lot to increase $D(G)$. So the modified loss does not vanish when $D$ is strong.
+
+If $D$ is random $D(G) \approx 0.5$. Then $\ell_G' = -\log 0.5 = \ln 2 \approx 0.693$, which is moderate; gradients are reasonable. So the loss behaves sensibly for a weak discriminator too.
+
+Thus $-\log D(G)$ makes the generator get large gradients when $D$ strongly rejects its samples, and moderate gradients when $D$ is uncertain. 
+This is exactly how they trained the generator in the \href{https://arxiv.org/pdf/1406.2661.pdf}{original GAN paper}.
+
+\end{enumerate}
+
+\section{Training CNN model and comparison with Transfer learning}
+
+Train, regularize, and interpret a CNN on CIFAR-10, then compare to transfer learning.
+\begin{enumerate}
+    \item Build a small CNN from scratch, add Batch Normalization / Dropout + data augmentation, and train the model for 3 epochs
+
+    \item Visualize Grad-CAM heatmaps of trained model in 3.1
+
+    \item Compare Grad-CAM heatmaps from 3.2 with one obtained from pretrained ResNet-18 in frozen vs fine-tuned modes
+\end{enumerate}
+
+Notebook: \href{https://colab.research.google.com/drive/1_XmdeaXsWgyren1q9i2iNAo01VjwFPl-?usp=sharing}{Assignment\_Week3\_Q3.ipynb (Google Colab)}
+
+\end{document}

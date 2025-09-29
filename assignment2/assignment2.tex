@@ -1,0 +1,399 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath, amssymb, geometry}
+\geometry{margin=1in}
+\usepackage{siunitx}
+\usepackage{bm}
+\usepackage{url}
+
+\title{Week 02 Assignment Based on Book Computer Vision by Richard Szeliski, Second Edition, Chapter 3}
+\author{Bishwash Khanal, \texttt{bishwash.b.khanal@student.jyu.fi}}
+\date{September 21, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section*{3.3 Compositing and reflections.}
+Section 3.1.3 describes the process of compositing an alpha-matted image on top of another. Answer the following questions and optionally
+validate them experimentally:
+\begin{enumerate}
+    \item Most captured images have gamma correction applied to them. Does this invalidate the
+basic compositing equation (3.8); if so, how should it be ﬁxed?
+    
+
+$\Rightarrow$ Section 3.1.3 describes the process of compositing an alpha-matted image on top of another. The basic compositing equation is:
+\begin{equation}
+C = (1 - \alpha)B + \alpha F
+\end{equation}
+where $C$ is the composite image, $B$ is the background, $F$ is the foreground, and $\alpha$ is the alpha matte.
+
+Yes, gamma correction does invalidate the basic compositing equation. The compositing equation assumes \emph{linear blending} of light intensities. 
+However, most digital images undergo gamma correction during capture:
+\begin{equation}
+I_{display} = I_{linear}^{1/\gamma}
+\end{equation}
+where $\gamma \approx 2.2$ for most display systems.
+
+When we apply the compositing equation directly to gamma-corrected values, we get:
+\begin{equation}
+C_{gamma} = (1 - \alpha)B_{gamma} + \alpha F_{gamma}
+\end{equation}
+
+This is \emph{not} equivalent to the physically correct linear blending followed by gamma correction.
+
+To fix this, we must:
+
+\begin{enumerate}
+\item \textbf{Linearize} the input images:
+\begin{align}
+B_{linear} &= B_{gamma}^{\gamma}\\
+F_{linear} &= F_{gamma}^{\gamma}
+\end{align}
+
+\item \textbf{Composite} in linear space:
+\begin{equation}
+C_{linear} = (1 - \alpha)B_{linear} + \alpha F_{linear}
+\end{equation}
+
+\item \textbf{Apply gamma correction} to the result:
+\begin{equation}
+C_{gamma} = C_{linear}^{1/\gamma}
+\end{equation}
+\end{enumerate}
+
+Let's show that direct gamma compositing $\neq$ correct linear compositing:
+
+Direct gamma compositing:
+\begin{equation}
+C_1 = (1-\alpha)B_{gamma} + \alpha F_{gamma} = (1-\alpha)B_{linear}^{1/\gamma} + \alpha F_{linear}^{1/\gamma}
+\end{equation}
+
+Correct linear compositing:
+\begin{equation}
+C_2 = [(1-\alpha)B_{linear} + \alpha F_{linear}]^{1/\gamma}
+\end{equation}
+
+Since the gamma function is nonlinear, $C_1 \neq C_2$ in general.
+
+\item The additive (pure reﬂection) model may have limitations. What happens if the glass is
+tinted, especially to a non-gray hue? How about if the glass is dirty or smudged? How
+could you model wavy glass or other kinds of refractive objects?
+\end{enumerate}
+
+$\Rightarrow$ The additive model assumes: $C = T + R$ where $T$ is transmitted light and $R$ is reflected light.
+
+\textbf{Tinted glass:} A tinted glass acts as a colored filter, multiplying transmitted light by wavelength-dependent coefficients. 
+The model becomes $C = (1 - \alpha)B + \alpha(T \odot F + R \odot \text{reflection})$ where T and R are the transmission 
+and reflection color coefficients, and $\odot$ denotes element-wise multiplication.
+
+\textbf{Dirty/smudged glass:} This introduces scattering and diffusion effects. Scattering can be modeled by convolving the reflection 
+with a blur kernel. Dirt particles create spatially varying transmission coefficients. The model can be expressed as: 
+$C = (1 - \alpha)B + \alpha$(T(x,y) $\cdot$ F + blur(R(x,y) $\cdot$ reflection)).
+
+\textbf{Wavy/refractive objects:} These cause geometric distortions requiring warping operations. To model these effects, 
+we need to: model the surface normal variations, apply appropriate refraction using Snell's law to warp the transmitted image, 
+and account for spatially varying magnification and distortion.
+
+\section*{3.11 Discrete Gaussian filters.}
+Discuss the following issues with implementing a discrete Gaussian filter:
+\begin{itemize}
+    \item If you just sample the equation of a continuous Gaussian ﬁlter at discrete locations,
+will you get the desired properties, e.g., will the coefﬁcients sum up to 1? Similarly, if
+you sample a derivative of a Gaussian, do the samples sum up to 0 or have vanishing
+higher-order moments?
+
+$\Rightarrow$ Simply sampling a continuous Gaussian at discrete points will NOT generally sum to 1. The sum 
+depends on the sampling rate and filter width. You must normalize: $h_{normalized}[i] = h[i] / \Sigma h[i]$. Sampled derivatives 
+of Gaussians also won't have exactly zero sum or correct higher-order moments due to discretization errors.
+
+    \item Would it be preferable to take the original signal, interpolate it with a sinc, blur with a
+continuous Gaussian, then preﬁlter with a sinc before re-sampling? Is there a simpler
+way to do this in the frequency domain?
+
+$\Rightarrow$ Sinc interpolation approach is theoretically optimal but computationally expensive. This involves 
+interpolating with sinc to create a continuous signal, convolving with continuous Gaussian, applying an anti-alias filter with 
+sinc, and then resampling. In the frequency domain, it's much simpler - multiply FFT of signal by Gaussian frequency response, 
+then take IFFT.
+
+    \item Would it make more sense to produce a Gaussian frequency response in the Fourier
+domain and to then take an inverse FFT to obtain a discrete filter?
+
+$\Rightarrow$ Direct frequency design often produces better results. Define desired Gaussian frequency response 
+$H(\omega) = e^{-\omega^2\sigma^2/2}$, take inverse FFT to get spatial filter, then truncate and shift appropriately.
+
+    \item How does truncation of the ﬁlter change its frequency response? Does it introduce any
+additional artifacts?
+
+$\Rightarrow$ Truncation introduces ripples (Gibbs phenomenon) in frequency response. The abrupt cutoff creates 
+high-frequency artifacts. Use smooth windowing (Hamming, Hann) instead of rectangular truncation to reduce artifacts.
+    \item Are the resulting two-dimensional ﬁlters as rotationally invariant as their continuous
+analogs? Is there some way to improve this? In fact, can any 2D discrete (separable or
+non-separable) ﬁlter be truly rotationally invariant?
+
+$\Rightarrow$ 2D discrete filters cannot be perfectly rotationally invariant due to the discrete grid. The best 
+you can achieve is approximate invariance. Improvements include using larger support regions, designing filters that 
+minimize directional bias, using steerable filters, and employing non-separable filters which generally perform better 
+than separable ones for rotational invariance. Theoretically, no discrete filter can be truly rotationally invariant - 
+the discrete grid imposes inherent anisotropy.
+\end{itemize}
+
+
+\section*{3.15 Fourier transform.}
+Prove the properties of the Fourier transform listed in Szeliski (2010, Table 3.1) and derive the formulas for the Fourier 
+transforms pairs listed in Szeliski (2010, Table 3.2) and Table 3.1. These exercises are very useful if you want to become 
+comfortable working with Fourier transforms, which is a very useful skill when analyzing and designing the behavior and 
+efﬁciency of many computer vision algorithms.
+
+\subsection*{Properties from Table 3.1}
+
+\subsubsection*{1. Superposition}
+\textbf{Property}: $f_1(x) + f_2(x) \Leftrightarrow F_1(\omega) + F_2(\omega)$
+\newline
+\textbf{Proof}:
+\begin{align*}
+\mathcal{F}\{f_1(x) + f_2(x)\} &= \int_{-\infty}^{\infty} [f_1(x) + f_2(x)]e^{-j\omega x}dx\\
+&= \int_{-\infty}^{\infty} f_1(x)e^{-j\omega x}dx + \int_{-\infty}^{\infty} f_2(x)e^{-j\omega x}dx\\
+&= F_1(\omega) + F_2(\omega)
+\end{align*}
+
+\subsubsection*{2. Shift}
+\textbf{Property}: $f(x - x_0) \Leftrightarrow F(\omega)e^{-j\omega x_0}$
+\newline
+\textbf{Proof}: Using substitution $u = x - x_0$:
+\begin{align*}
+\mathcal{F}\{f(x-x_0)\} &= \int_{-\infty}^{\infty} f(x-x_0)e^{-j\omega x}dx\\
+&= \int_{-\infty}^{\infty} f(u)e^{-j\omega (u+x_0)}du\\
+&= e^{-j\omega x_0}\int_{-\infty}^{\infty} f(u)e^{-j\omega u}du\\
+&= e^{-j\omega x_0}F(\omega)
+\end{align*}
+
+\subsubsection*{3. Reversal}
+\textbf{Property}: $f(-x) \Leftrightarrow F^*(-\omega)$
+\newline
+\textbf{Proof}: Using substitution $u = -x$:
+\begin{align*}
+\mathcal{F}\{f(-x)\} &= \int_{-\infty}^{\infty} f(-x)e^{-j\omega x}dx\\
+&= \int_{\infty}^{-\infty} f(u)e^{-j\omega (-u)}(-du)\\
+&= \int_{-\infty}^{\infty} f(u)e^{j\omega u}du\\
+&= \left[\int_{-\infty}^{\infty} f(u)e^{-j(-\omega) u}du\right]^*\\
+&= F^*(-\omega)
+\end{align*}
+
+\subsubsection*{4. Convolution}
+\textbf{Property}: $f(x) * h(x) \Leftrightarrow F(\omega)H(\omega)$
+\newline
+\textbf{Proof}:
+\begin{align*}
+\mathcal{F}\{f * h\} &= \mathcal{F}\left\{\int_{-\infty}^{\infty} f(\tau)h(x-\tau)d\tau\right\}\\
+&= \int_{-\infty}^{\infty} \left[\int_{-\infty}^{\infty} f(\tau)h(x-\tau)d\tau\right]e^{-j\omega x}dx\\
+&= \int_{-\infty}^{\infty} f(\tau)\left[\int_{-\infty}^{\infty} h(x-\tau)e^{-j\omega x}dx\right]d\tau\\
+&= \int_{-\infty}^{\infty} f(\tau)H(\omega)e^{-j\omega \tau}d\tau \quad \text{(using shift property)}\\
+&= H(\omega)\int_{-\infty}^{\infty} f(\tau)e^{-j\omega \tau}d\tau\\
+&= F(\omega)H(\omega)
+\end{align*}
+
+\subsubsection*{5. Correlation}
+\textbf{Property}: $f(x) \otimes h(x) \Leftrightarrow F(\omega)H^*(\omega)$
+\newline
+\textbf{Note}: Correlation is defined as $f \otimes h = \int_{-\infty}^{\infty} f(\tau)h(\tau + x)d\tau$
+\newline
+\textbf{Proof}:
+\begin{align*}
+\mathcal{F}\{f \otimes h\} &= \mathcal{F}\left\{\int_{-\infty}^{\infty} f(\tau)h(\tau + x)d\tau\right\}\\
+&= \int_{-\infty}^{\infty} f(\tau)\mathcal{F}\{h(\tau + x)\}d\tau\\
+&= \int_{-\infty}^{\infty} f(\tau)H(\omega)e^{j\omega \tau}d\tau \quad \text{(shift property)}\\
+&= H(\omega)\int_{-\infty}^{\infty} f(\tau)[e^{-j\omega \tau}]^*d\tau\\
+&= H(\omega)[F(\omega)]^* = F(\omega)H^*(\omega)
+\end{align*}
+
+\subsubsection*{6. Multiplication}
+\textbf{Property}: $f(x)h(x) \Leftrightarrow F(\omega) * H(\omega)$
+\newline
+\textbf{Proof}: Using the inverse Fourier transform (following Szeliski's convention):
+\begin{align*}
+f(x) &= \int_{-\infty}^{\infty} F(\alpha)e^{j\alpha x}d\alpha\\
+f(x)h(x) &= h(x) \int_{-\infty}^{\infty} F(\alpha)e^{j\alpha x}d\alpha\\
+\mathcal{F}\{f(x)h(x)\} &= \int_{-\infty}^{\infty} F(\alpha)\mathcal{F}\{h(x)e^{j\alpha x}\}d\alpha\\
+&= \int_{-\infty}^{\infty} F(\alpha)H(\omega - \alpha)d\alpha\\
+&= F(\omega) * H(\omega)
+\end{align*}
+
+\subsubsection*{7. Differentiation}
+\textbf{Property}: $f'(x) \Leftrightarrow j\omega F(\omega)$
+\newline
+\textbf{Proof}: Using integration by parts:
+\begin{align*}
+\mathcal{F}\{f'(x)\} &= \int_{-\infty}^{\infty} f'(x)e^{-j\omega x}dx\\
+&= [f(x)e^{-j\omega x}]_{-\infty}^{\infty} - \int_{-\infty}^{\infty} f(x)(-j\omega)e^{-j\omega x}dx\\
+&= 0 + j\omega\int_{-\infty}^{\infty} f(x)e^{-j\omega x}dx\\
+&= j\omega F(\omega)
+\end{align*}
+
+\subsubsection*{8. Domain Scaling}
+\textbf{Property}: $f(ax) \Leftrightarrow \frac{1}{a}F\left(\frac{\omega}{a}\right)$ (for $a > 0$)
+\newline
+\textbf{Proof}: Using substitution $u = ax$:
+\begin{align*}
+\mathcal{F}\{f(ax)\} &= \int_{-\infty}^{\infty} f(ax)e^{-j\omega x}dx\\
+&= \int_{-\infty}^{\infty} f(u)e^{-j\omega u/a}\frac{du}{a}\\
+&= \frac{1}{a}\int_{-\infty}^{\infty} f(u)e^{-j(\omega/a) u}du\\
+&= \frac{1}{a}F\left(\frac{\omega}{a}\right)
+\end{align*}
+
+\subsubsection*{9. Real Images}
+\textbf{Property}: $f(x) = f^*(x) \Leftrightarrow F(\omega) = F^*(-\omega)$
+\newline
+\textbf{Proof}: For real-valued $f(x)$:
+\begin{align*}
+F^*(\omega) &= \left[\int_{-\infty}^{\infty} f(x)e^{-j\omega x}dx\right]^*\\
+&= \int_{-\infty}^{\infty} f^*(x)e^{j\omega x}dx\\
+&= \int_{-\infty}^{\infty} f(x)e^{j\omega x}dx \quad \text{(since $f$ is real)}\\
+&= \int_{-\infty}^{\infty} f(x)e^{-j(-\omega) x}dx\\
+&= F(-\omega)
+\end{align*}
+
+\subsubsection*{10. Parseval's Theorem}
+\textbf{Property}: $\sum_x [f(x)]^2 = \sum_\omega [F(\omega)]^2$
+\newline
+For continuous signals: $\int_{-\infty}^{\infty} |f(x)|^2 dx = \int_{-\infty}^{\infty} |F(\omega)|^2 d\omega$
+\newline
+\textbf{Proof}:
+\begin{align*}
+\int_{-\infty}^{\infty} |f(x)|^2 dx &= \int_{-\infty}^{\infty} f(x)f^*(x) dx\\
+&= \int_{-\infty}^{\infty} f(x)\left[\int_{-\infty}^{\infty} F^*(\omega)e^{-j\omega x}d\omega\right] dx\\
+&= \int_{-\infty}^{\infty} F^*(\omega)\left[\int_{-\infty}^{\infty} f(x)e^{-j\omega x}dx\right]d\omega\\
+&= \int_{-\infty}^{\infty} F^*(\omega)F(\omega)d\omega\\
+&= \int_{-\infty}^{\infty} |F(\omega)|^2 d\omega
+\end{align*}
+
+\subsection*{Transform Pairs from Table 3.2}
+
+\subsubsection*{1. Impulse}
+\textbf{Function}: $\delta(x)$
+\newline
+\textbf{Transform}: $\mathcal{F}\{\delta(x)\} = 1$
+\newline
+\textbf{Proof}:
+\begin{equation*}
+\mathcal{F}\{\delta(x)\} = \int_{-\infty}^{\infty} \delta(x)e^{-j\omega x}dx = e^{-j\omega \cdot 0} = 1
+\end{equation*}
+
+\subsubsection*{2. Shifted Impulse}
+\textbf{Function}: $\delta(x - u)$
+\newline
+\textbf{Transform}: $\mathcal{F}\{\delta(x - u)\} = e^{-j\omega u}$
+\newline
+\textbf{Proof}: Using the shift property with $\mathcal{F}\{\delta(x)\} = 1$:
+\begin{equation*}
+\mathcal{F}\{\delta(x - u)\} = e^{-j\omega u} \cdot 1 = e^{-j\omega u}
+\end{equation*}
+
+\subsubsection*{3. Box Filter}
+\textbf{Function}: $\text{box}(x/a) = \begin{cases} 1 & |x| \leq a \\ 0 & \text{otherwise} \end{cases}$
+\newline
+\textbf{Transform}: $a \cdot \text{sinc}(a\omega)$
+\newline
+\textbf{Proof}:
+\begin{align*}
+\mathcal{F}\{\text{box}(x/a)\} &= \int_{-a}^{a} e^{-j\omega x}dx\\
+&= \left[\frac{e^{-j\omega x}}{-j\omega}\right]_{-a}^{a}\\
+&= \frac{e^{-j\omega a} - e^{j\omega a}}{-j\omega}\\
+&= \frac{2\sin(\omega a)}{\omega} \\
+&= a \cdot \text{sinc}(a\omega)
+\end{align*}
+
+\subsubsection*{4. Tent Function}
+\textbf{Function}: $\text{tent}(x/a) = \max(0, 1 - |x|/a)$
+\newline
+\textbf{Transform}: $a \cdot \text{sinc}^2(a\omega)$
+\newline
+\textbf{Proof}: The tent function is the convolution of two box functions:
+$\text{tent}(x/a) = \text{box}(x/(a/2)) * \text{box}(x/(a/2))$
+
+Using the convolution property:
+\begin{equation*}
+\mathcal{F}\{\text{tent}(x/a)\} = \mathcal{F}\{\text{box}(x/(a/2))\} \cdot \mathcal{F}\{\text{box}(x/(a/2))\} = [a\text{sinc}(a\omega/2)]^2
+\end{equation*}
+
+\subsubsection*{5. Gaussian}
+\textbf{Function}: $G(x; \sigma) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{x^2}{2\sigma^2}}$
+\newline
+\textbf{Transform}: $\sqrt{2\pi}\sigma^{-1} G(\omega; \sigma^{-1}) = e^{-\frac{\sigma^2\omega^2}{2}}$
+\newline
+\textbf{Proof}: Using the integral $\int_{-\infty}^{\infty} e^{-ax^2} dx = \sqrt{\pi/a}$:
+\begin{align*}
+\mathcal{F}\{G(x; \sigma)\} &= \frac{1}{\sqrt{2\pi\sigma^2}} \int_{-\infty}^{\infty} e^{-\frac{x^2}{2\sigma^2}}e^{-j\omega x}dx\\
+&= \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{\sigma^2\omega^2}{2}} \int_{-\infty}^{\infty} e^{-\frac{(x+j\sigma^2\omega)^2}{2\sigma^2}}dx\\
+&= \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{\sigma^2\omega^2}{2}} \sqrt{2\pi\sigma^2}\\
+&= e^{-\frac{\sigma^2\omega^2}{2}}
+\end{align*}
+
+\subsubsection*{6. Laplacian of Gaussian}
+\textbf{Function}: $\text{LoG}(x; \sigma) = \left(\frac{x^2}{\sigma^4} - \frac{1}{\sigma^2}\right)G(x; \sigma)$
+\newline
+\textbf{Transform}: $-\sqrt{2\pi}\sigma^{-1}\omega^2 G(\omega; \sigma^{-1})$
+\newline
+\textbf{Proof}: Using the differentiation property twice:
+\begin{align*}
+\mathcal{F}\{G''(x; \sigma)\} &= (j\omega)^2 \mathcal{F}\{G(x; \sigma)\}\\
+&= -\omega^2 e^{-\frac{\sigma^2\omega^2}{2}}\\
+&= -\omega^2 \sqrt{2\pi}\sigma^{-1} G(\omega; \sigma^{-1})
+\end{align*}
+
+\subsubsection*{7. Gabor Filter}
+\textbf{Function}: $\cos(\omega_0 x)G(x; \sigma)$
+\newline
+\textbf{Transform}: $\frac{\sqrt{2\pi}}{2}\sigma^{-1}[G(\omega - \omega_0; \sigma^{-1}) + G(\omega + \omega_0; \sigma^{-1})]$
+\newline
+\textbf{Proof}: Using $\cos(\omega_0 x) = \frac{1}{2}[e^{j\omega_0 x} + e^{-j\omega_0 x}]$ and frequency shifting:
+\begin{align*}
+\mathcal{F}\{\cos(\omega_0 x)G(x; \sigma)\} &= \frac{1}{2}[\mathcal{F}\{e^{j\omega_0 x}G(x; \sigma)\} + \mathcal{F}\{e^{-j\omega_0 x}G(x; \sigma)\}]\\
+&= \frac{1}{2}[G(\omega - \omega_0; \sigma^{-1}) + G(\omega + \omega_0; \sigma^{-1})]
+\end{align*}
+
+\subsubsection*{8. Unsharp Mask}
+\textbf{Function}: $(1 + \gamma)\delta(x) - \gamma G(x; \sigma)$
+\newline
+\textbf{Transform}: $(1 + \gamma) - \sqrt{2\pi\gamma}\sigma^{-1} G(\omega; \sigma^{-1})$
+\newline
+\textbf{Proof}: Using linearity and the transforms of impulse and Gaussian:
+\begin{align*}
+\mathcal{F}\{(1 + \gamma)\delta(x) - \gamma G(x; \sigma)\} &= (1 + \gamma) \cdot 1 - \gamma \cdot \sqrt{2\pi}\sigma^{-1} G(\omega; \sigma^{-1})\\
+&= (1 + \gamma) - \sqrt{2\pi\gamma}\sigma^{-1} G(\omega; \sigma^{-1})
+\end{align*}
+
+\subsubsection*{9. Windowed Sinc}
+\textbf{Function}: $\text{rcos}(x/(aW)) \cdot \text{sinc}(x/a)$
+\newline
+\textbf{Transform}: Approximates ideal low-pass filter as $W$ increases
+\newline
+The windowed sinc uses a raised cosine (Hann) window:
+\begin{equation*}
+\text{rcos}(x) = \frac{1}{2}(1 + \cos(\pi x))\text{box}(x)
+\end{equation*}
+
+The transform involves the convolution of the sinc transform (rectangular frequency response) with the transform of the raised cosine window, resulting in a smooth approximation to an ideal low-pass filter with reduced ringing artifacts.
+
+
+\begin{thebibliography}{20}
+
+\bibitem{szeliski2021}
+R. Szeliski, \emph{Computer Vision: Algorithms and Applications}, 2nd edition, Springer, 2021.
+
+\bibitem{szeliski2010}
+R. Szeliski, \emph{Computer Vision: Algorithms and Applications}, 1st edition, Springer, 2010.
+
+\bibitem{gonzalez2017}
+R. C. Gonzalez and R. E. Woods, \emph{Digital Image Processing}, 4th edition, Pearson, 2017.
+
+\bibitem{pratt2007}
+W. K. Pratt, \emph{Digital Image Processing}, 4th edition, John Wiley \& Sons, 2007.
+
+\bibitem{mit-fourier}
+A. V. Oppenheim, R. W. Schafer, and J. R. Buck, \emph{Lecture 9: Fourier Transform Properties}, MIT OpenCourseWare, Signals and Systems, Retrieved from \url{https://ocw.mit.edu/courses/res-6-007-signals-and-systems-spring-2011/403577752d3007ed4ea30e8c61cf90d7_MITRES_6_007S11_lec09.pdf}, 2011. 
+
+\bibitem{herman-fourier}
+R. Herman, \emph{9.5: Properties of the Fourier Transform}, LibreTexts, Retrieved from \url{https://math.libretexts.org/Bookshelves/Differential_Equations/Introduction_to_Partial_Differential_Equations_(Herman)/09%3A_Transform_Techniques_in_Physics/9.05%3A_Properties_of_the_Fourier_Transform}, 2021. 
+\end{thebibliography}
+
+\end{document}

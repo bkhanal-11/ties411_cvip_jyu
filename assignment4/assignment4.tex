@@ -1,0 +1,37 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath, amssymb, geometry}
+\geometry{margin=1in}
+\usepackage{siunitx}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+
+\title{Week 04 Assignment Based on Book Computer Vision by Richard Szeliski, Second Edition, Chapter 6}
+\author{Bishwash Khanal, \texttt{bishwash.b.khanal@student.jyu.fi}}
+\date{October 05, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Image perturbations}
+Download ImageNet dataset. Now, perturb each image by adding a small square to the top-left of the image, where the color of the square is unique for 
+each label, as shown in the given Figure at the given link: \url{https://drive.google.com/file/d/1GfElP7lNGt_Y0KCBQJt9fYui1cny7HrC/view?usp=sharing}
+
+
+Using any image classification model (e.g., ResNet, EfficientNet, or ViT), train the model from scratch on the perturbed images.
+
+
+Does the model overfit to the color of the square and ignore the rest of the image? When evaluating the model on the training and validation data, 
+try adversarially swapping colors between different labels and report the effect on accuracy.
+
+\section{Object detection}
+For object detection, how do the number of parameters for DETR, Faster-RCNN, and YOLOv4 compare? Train each of them on MS COCO dataset. 
+Which one tends to train the slowest? How long does it take each model to evaluate a single image at inference time?
+
+\section{ImageNet Sketch}
+Take any 3 pre-trained models on ImageNet and evaluating (their test accuracy) them, without any fine-tuning, on ImageNet Sketch dataset 
+(Wang, Ge et al., 2019). For each of these models, to what extent does the performance drop due to the shift in distribution?
+
+\end{document}

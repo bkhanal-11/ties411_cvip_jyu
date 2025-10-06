@@ -1,0 +1,211 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath, amssymb, geometry}
+\geometry{margin=1in}
+\usepackage{siunitx}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+
+\title{Week 05 Assignment Based on Book Computer Vision by Richard Szeliski, Second Edition, Chapter 7}
+\author{Bishwash Khanal, \texttt{bishwash.b.khanal@student.jyu.fi}}
+\date{October 12, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Harris Corner Detector}
+You are given per-pixel image derivatives (in x and y directions) $(I_x,I_y)$ on a $3\times 3$ window (centered at $(0,0)$). Use a \textit{uniform window} (all weights =1).
+
+\begin{align*}
+I_x=\begin{bmatrix}
+4&4&4\\
+4&4&4\\
+4&4&4
+\end{bmatrix},\qquad
+I_y=\begin{bmatrix}
+-1&0&1\\
+-1&0&1\\
+-1&0&1
+\end{bmatrix}.
+\end{align*}
+
+\begin{enumerate}
+    \item Compute the second-moment (structure) matrix [1 pt].
+\begin{align*}
+M=\begin{bmatrix}
+\sum I_x^2 & \sum I_x I_y\\[2pt]
+\sum I_x I_y & \sum I_y^2
+\end{bmatrix}.
+\end{align*}
+
+Computing each element:
+\begin{align*}
+\sum I_x^2 &= 4^2 \times 9 = 16 \times 9 = 144\\[6pt]
+\sum I_y^2 &= (-1)^2 \times 3 + 0^2 \times 3 + 1^2 \times 3 = 1 + 0 + 1 = 6\\[6pt]
+\sum I_x I_y &= 4(-1) \times 3 + 4(0) \times 3 + 4(1) \times 3 = -12 + 0 + 12 = 0
+\end{align*}
+
+Therefore, the second-moment matrix is:
+\begin{align*}
+M = \begin{bmatrix}
+144 & 0\\
+0 & 6
+\end{bmatrix}
+\end{align*}
+
+    \item Find the eigenvalues $\lambda_1,\lambda_2$ of M [1 pt].
+
+    Since $M$ is a diagonal matrix, the eigenvalues are simply the diagonal elements:
+\begin{align*}
+\lambda_1 = 144, \quad \lambda_2 = 6
+\end{align*}
+
+    \item With $k=0.06$, compute the Harris score [1 pt] .
+\begin{align*}
+R=\det(M)-k\,(\mathrm{trace}(M))^2.
+\end{align*}
+
+With $k = 0.06$, the Harris score is:
+\begin{align*}
+R &= \det(M) - k\,(\mathrm{trace}(M))^2\\[6pt]
+&= (144 \times 6 - 0^2) - 0.06 \times (144 + 6)^2\\[6pt]
+&= 864 - 0.06 \times (150)^2\\[6pt]
+&= 864 - 0.06 \times 22500\\[6pt]
+&= 864 - 1350\\[6pt]
+&= -486
+\end{align*}
+    \item Answer whether the region is flat or edge or corner with justification [2 pt] .
+
+The region is an \textbf{EDGE}. The Harris score $R = -486 < 0$ indicates an edge region. Also, the eigenvalues show that one is much larger than the other: $\lambda_1 = 144 \gg \lambda_2 = 6$ 
+(ratio of 24:1).
+
+    \item What is the primary key limitation of Harris Corner Detector? [1 pt]
+
+    The primary key limitation of the Harris Corner Detector is its \textbf{lack of scale invariance}.
+The Harris detector operates at a fixed scale and cannot reliably detect corners that appear at different scales in an image. A corner that is prominent at one 
+scale may not be detected at another scale (e.g., when the image is zoomed in or out).
+\end{enumerate}
+
+\section{Difference of Guassians (DoG) Hessian Edge Rejection}
+You are given a $3\times 3$ patch of the Difference-of-Gaussian response $D(x,y)$ at one scale (unit pixel spacing). The center is at $(0,0)$.
+
+\begin{align*}
+D=\begin{bmatrix}
+-0.12 & -0.10 & -0.08\\
+-0.11 & -0.20 & -0.09\\
+-0.10 & -0.12 & -0.07
+\end{bmatrix}
+\qquad
+\text{indices}=
+\begin{bmatrix}
+(-1,1) & (0,1) & (1,1)\\
+(-1,0) & (0,0) & (1,0)\\
+(-1,-1) & (0,-1) & (1,-1)
+\end{bmatrix}
+\end{align*}
+
+Use discrete second-derivative approximations at $(0,0)$:
+\begin{align*}
+D_{xx} &\approx D(1,0)-2D(0,0)+D(-1,0),\\
+D_{yy} &\approx D(0,1)-2D(0,0)+D(0,-1),\\
+D_{xy} &\approx \tfrac{1}{4}\big(D(1,1)-D(1,-1)-D(-1,1)+D(-1,-1)\big).
+\end{align*}
+
+\begin{enumerate}
+    \item Compute $D_{xx}, D_{yy}, D_{xy}$ [0.5 pt].
+
+    Extracting relevant values from the matrix:
+    \begin{align*}
+    D(0,0) &= -0.20, \quad D(1,0) = -0.09, \quad D(-1,0) = -0.11\\
+    D(0,1) &= -0.10, \quad D(0,-1) = -0.12\\
+    D(1,1) &= -0.08, \quad D(1,-1) = -0.07\\
+    D(-1,1) &= -0.12, \quad D(-1,-1) = -0.10
+    \end{align*}
+
+    Computing the second derivatives:
+    \begin{align*}
+    D_{xx} &= D(1,0) - 2D(0,0) + D(-1,0)\\
+    &= -0.09 - 2(-0.20) + (-0.11)\\
+    &= -0.09 + 0.40 - 0.11\\
+    &= 0.20\\[12pt]
+    D_{yy} &= D(0,1) - 2D(0,0) + D(0,-1)\\
+    &= -0.10 - 2(-0.20) + (-0.12)\\
+    &= -0.10 + 0.40 - 0.12\\
+    &= 0.18\\[12pt]
+    D_{xy} &= \frac{1}{4}\big(D(1,1) - D(1,-1) - D(-1,1) + D(-1,-1)\big)\\
+    &= \frac{1}{4}\big(-0.08 - (-0.07) - (-0.12) + (-0.10)\big)\\
+    &= \frac{1}{4}(-0.08 + 0.07 + 0.12 - 0.10)\\
+    &= \frac{1}{4}(0.01)\\
+    &= 0.0025
+    \end{align*}
+    \item Compute Hessian $\mathbf H=\begin{bmatrix}D_{xx}&D_{xy}\\ D_{xy}&D_{yy}\end{bmatrix}$ [0.5 pt].
+    
+    The Hessian matrix is:
+    \begin{align*}
+    \mathbf{H} = \begin{bmatrix}
+    D_{xx} & D_{xy}\\
+    D_{xy} & D_{yy}
+    \end{bmatrix} = \begin{bmatrix}
+    0.20 & 0.0025\\
+    0.0025 & 0.18
+    \end{bmatrix}
+    \end{align*}
+    \item Evaluate the edge-rejection ratio $R=\frac{\mathrm{Tr}(\mathbf H)^2}{\det(\mathbf H)}$. Decide keep / reject using the threshold $R>10 \Rightarrow reject (edge-like)$ [1 pt].
+
+(Hint: $\mathrm{Tr}(\mathbf H)=D_{xx}+D_{yy}$ and $\det(\mathbf H)=D_{xx}D_{yy}-D_{xy}^2$.)
+
+Computing the trace and determinant:
+\begin{align*}
+\mathrm{Tr}(\mathbf{H}) &= D_{xx} + D_{yy} = 0.20 + 0.18 = 0.38\\[6pt]
+\det(\mathbf{H}) &= D_{xx} \cdot D_{yy} - D_{xy}^2\\
+&= (0.20)(0.18) - (0.0025)^2\\
+&= 0.036 - 0.00000625\\
+&= 0.03599375 \approx 0.036
+\end{align*}
+
+Edge-rejection ratio:
+\begin{align*}
+R &= \frac{\mathrm{Tr}(\mathbf{H})^2}{\det(\mathbf{H})}\\[6pt]
+&= \frac{(0.38)^2}{0.036}\\[6pt]
+&= \frac{0.1444}{0.036}\\[6pt]
+&= 4.01
+\end{align*}
+
+The keypoint is \textbf{corner-like} and should be kept.
+
+Since $R \approx 4.01 < 10$, this keypoint is \textbf{corner-like} and should be kept. The threshold criterion states that $R > 10$ indicates an edge-like feature that should be rejected. Our computed ratio is well below this threshold, indicating that the curvatures in both principal directions are reasonably balanced, making this a good keypoint.
+
+
+    \item Hessian matrix captures the local second-order curvature (per-pixel second order image derivative) of the DoG surface at a keypoint. Why cannot we just use gradient magnitude (i.e. per-pixel first order image derivatives along x and y directions) [1 pt]?
+\end{enumerate}
+
+We cannot rely on gradient magnitude (first-order derivatives) alone because at extrema, gradients vanish. At DoG keypoints, the first derivatives are (approximately) zero, 
+so gradient magnitude gives no useful contrast. Additionally, gradient magnitude only measures change in strength, not how that change varies across directions, so edges and 
+corners could look similar and directionality is lost.
+
+We can determine how the surface bends in different directions like edges and corners by analyzing the eigenvalues of the Hessian matrix.
+Also, the Hessian lets us reject edge-like responses (which are poorly localized) and retain stable corners.
+
+Source: \href{https://medium.com/jun94-devpblog/cv-10-local-feature-descriptors-harris-and-hessian-corner-detector-7d524888abfd}{[CV] 10. Local Feature Descriptors: Harris and Hessian Corner Detector (Medium)}
+
+\section{Feature Matching}
+
+\begin{enumerate}
+    \item Implement pipelines (1. Brute-Force matcher and 2. FLANN Matcher in OpenCV) to match features in one image with others. Find two images from the given link 
+    \url{https://drive.google.com/drive/folders/1jxhppxwGwYvxgIua5HHZt9eVPL7S6bYv?usp=share_link} [4pt].
+
+Notebook: \href{https://colab.research.google.com/drive/1EQDte31rVoR3utRkTQFZ9Pr5DnIYloK3?usp=sharing}{Assignment\_Week5\_Q3.ipynb (Google Colab)} - 
+\href{https://github.com/bkhanal-11/ties411_cvip_jyu/blob/master/assignment5/src/Assignment_Week5_Q3.ipynb}{(GitHub)}
+
+    \item Compare and contrast each pipeline. For each pipeline, report matching time [1 pt].
+
+    FLANN was $3.56x$ faster than Brute-Force (0.2338s vs 0.8333s), demonstrating the efficiency of approximate nearest neighbor search using KD-tree indexing even on moderately-sized feature sets.
+    
+    FLANN found $56\%$ more good matches (25 vs 16), indicating it captured more valid correspondences between the two images. Both matchers used the same Lowe's ratio test (threshold = 0.75), so the difference reflects FLANN's search strategy.
+    
+    While Brute-Force guarantees finding the absolute best match by exhaustively comparing all descriptor pairs ($O(n \times m)$ complexity), FLANN uses approximate search with KD-trees ($O(n \log m)$ complexity) that is faster and still produces high-quality matches suitable for most applications.    
+    \end{enumerate}
+
+\end{document}

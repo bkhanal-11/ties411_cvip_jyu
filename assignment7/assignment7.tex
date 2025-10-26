@@ -24,7 +24,8 @@ Also, submit your original video clip taken and source code to remove reflection
 
 Optional: Try above with video clips taken through transparent window during the day, and during the night. You may also take the clip 
 through car window during this day and the night. Report the differences in results and the impact of lightening effect.
-\newline
+
+\subsection{Results}
 \textbf{Original Video Clip:} \href{https://drive.google.com/file/d/1gjEgFKrlBo2PgFSqi23-u5K3uIAr0AF5/view?usp=sharing}{Google Drive}
 \newline
 \textbf{Notebook:} \href{https://colab.research.google.com/drive/1H8oc060oYT3zyzLS-TISJCzxbsjmcvuA?usp=sharing}{Assignment\_Week7\_Q1.ipynb (Google Colab)} - 
@@ -37,6 +38,18 @@ through car window during this day and the night. Report the differences in resu
     \label{fig:comparison}
 \end{figure}
 
+\subsection{Analysis}
+The reflection removal algorithm implemented here is based on the method described in Section 9.4.2 of Szeliski's book. The approach involves estimating the motion of both the 
+transmitted scene (the art work in the picture) and the reflected scene (the reflection on the glass of the picture frame) separately. By leveraging the differences in motion between 
+these two layers, we can isolate and remove the reflection. The key steps include:
+\begin{itemize}
+    \item \textbf{Motion Estimation:} Using ORB features across frames to estimate the motion of both the transmitted and reflected scenes.
+    \item \textbf{Layer Separation:} Using the motion estimates to separate the two layers.
+    \item \textbf{Reflection Removal:} Subtracting the estimated reflection layer from the original frames to enhance the visibility of the transmitted scene.
+\end{itemize}
+
+Looking at the Figure \ref{fig:comparison} we can see that the transmitted layer is too a bit dark. Also this simple implementation seems to have lost color and the final output is 
+grayscale. But overall, the reflection removal is quite effective, especially in frames where the reflection is strong.
 
 
 \section{Optical Flow}
@@ -56,9 +69,9 @@ Hint (recommended to check this before attempting this question): \url{https://d
 \textbf{Notebook:} \href{https://colab.research.google.com/drive/1e2mMba6YOY2pt4cyBrOAsf8wfL6rVag4?usp=sharing}{Assignment\_Week7\_Q2.ipynb (Google Colab)} - 
 \href{https://github.com/bkhanal-11/ties411_cvip_jyu/blob/master/assignment7/src/Assignment_Week7_Q2.ipynb}{(GitHub)}
 \newline
-Sparse Optical Flow Output: \href{https://drive.google.com/file/d/1iLkjQO8ZW9hpywKb2z5pnCL-cukpZUon/view?usp=sharing}{Google Drive}
+\textbf{Sparse Optical Flow Output:} \href{https://drive.google.com/file/d/1iLkjQO8ZW9hpywKb2z5pnCL-cukpZUon/view?usp=sharing}{Google Drive}
 \newline
-Dense Optical Flow Output: \href{https://drive.google.com/file/d/1LyLgQWyLzUiwqHsQQL1IQbtPpALp8bBU/view?usp=sharing}{Google Drive}
+\textbf{Dense Optical Flow Output:} \href{https://drive.google.com/file/d/1LyLgQWyLzUiwqHsQQL1IQbtPpALp8bBU/view?usp=sharing}{Google Drive}
 
 \begin{figure}[htb]
     \centering
